@@ -5,16 +5,12 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: ssoukoun <ssoukoun@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/06/28 15:24:07 by ssoukoun          #+#    #+#             */
-/*   Updated: 2024/07/06 20:16:35 by ssoukoun         ###   ########.fr       */
+/*   Created: 2024/07/08 11:59:34 by ssoukoun          #+#    #+#             */
+/*   Updated: 2024/07/11 01:35:51 by ssoukoun         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "get_next_line.h"
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
 
 char	*ft_strchr(const char *s, int c)
 {
@@ -32,78 +28,98 @@ char	*ft_strchr(const char *s, int c)
 	return (NULL);
 }
 
-int	ft_strlen(const char *str)
+char	*ft_substr(char const *s, unsigned int start, size_t len)
 {
-	int	i;
+	size_t	i;
+	char	*str;
 
 	i = 0;
-	while (str[i] != '\0')
+	if (!s)
+		return (NULL);
+	if (start > (unsigned int)ft_strlen(s))
+		return (ft_strdup(""));
+	if (len > (unsigned int)ft_strlen(s + start))
+		len = (unsigned int)ft_strlen(s + start);
+	str = ft_calloc(len + 1, sizeof(char));
+	if (!str)
+		return (NULL);
+	while (i < len)
 	{
+		str[i] = s[start + i];
 		i++;
 	}
-	return (i);
+	str[i] = '\0';
+	return (str);
 }
 
 char	*set(char *line)
 {
-	char	*stock;
 	int		i;
+	char	*stock;
 
 	i = 0;
-	while (line[i] && line[i] != '\n')
+	while (line && line[i] != '\0' && line[i] != '\n')
 		i++;
-	if (line[i] == 0)
+	if (!line || line[i] == 0 || ft_strlen(line) <= (i + 1) || line[1 + i] == 0)
 		return (NULL);
-	stock = ft_substr(line, i + 1, ft_strlen(line) - i);
-	if (stock == 0)
-	{
-		free(stock);
-		stock = NULL;
-	}
-	stock[i] = '\0';
+	stock = ft_substr(line, i + 1, ft_strlen(line) - i - 1);
+	if (!stock)
+		return (NULL);
+	line[i + 1] = '\0';
+	// *(line + i + 1) = '\0';
 	return (stock);
 }
 
-char	*rdr(int fd, char *buff, char *left)
+char	*lect(char *stock, int fd)
 {
-	int		ret;
+	int		check;
 	char	*temp;
+	char	*buffer;
 
-	ret = 1;
-	while (ret > 0)
+	check = 1;
+	buffer = ft_calloc(BUFFER_SIZE + 1, sizeof(char));
+	if (!buffer)
+		return (NULL);
+	
+	while (ft_strlen(stock) == 0 && read(fd, NULL, 0) == 0)
 	{
-		ret = read(fd, buff, BUFFER_SIZE);
-		if (ret == -1)
+		check = read(fd, buffer, BUFFER_SIZE);
+		if (check <= 0)
 			return (NULL);
-		else if (ret == 0)
-			break ;
-		buff[ret] = '\0';
-		temp = left;
-		left = ft_strjoin(temp, buff);
+		buffer[check] = '\0';
+		temp = stock;
+		stock = ft_strjoin(temp, buffer);
 		free(temp);
-		temp = NULL;
+		if (ft_strchr(buffer, '\n'))
+			break ;
 	}
-	return (left);
+	free(buffer);
+	buffer = NULL;
+	return (stock);
 }
 
 char	*get_next_line(int fd)
 {
-	char		*buff;
-	char		*tt;
-	static char	*stk;
+	char		*line;
+	static char	*stock;
 
-	buff = malloc((BUFFER_SIZE + 1) * sizeof(char));
-	if (fd < 0 || BUFFER_SIZE <= 0 || read(fd, 0, 0) < 0)
+	if (!(stock))
+		stock = ft_strdup("");
+	if (fd < 0 || BUFFER_SIZE <= 0 || read(fd, 0, 0))
+		return ((free(stock)), (stock = NULL));
+	line = lect(stock, fd);
+	if (!line)
 	{
-		free(buff);
-		free(stk);
+		free(line);
+		line = NULL;
 		return (NULL);
 	}
-	tt = rdr(fd, buff, stk);
-	free(buff);
-	buff = NULL;
-	if (!buff)
-		return (NULL);
-	stk = set(tt);
-	return (tt);
+	stock = set(line);
+	// if (0 == ft_strlen(stock) && !line)
+	// {
+	// 	free(stock);
+	// 	stock = NULL;
+	// 	return (NULL);
+	// }
+	return (line);
 }
